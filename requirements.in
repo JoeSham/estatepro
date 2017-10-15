@@ -1,0 +1,11 @@
+arrow
+bs4
+flask
+flask-migrate
+flask-script
+flask-sqlalchemy
+geopy
+gunicorn
+psycopg2
+requests
+

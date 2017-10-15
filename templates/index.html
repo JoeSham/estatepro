@@ -1,0 +1,191 @@
+    <!DOCTYPE html>
+<html>
+    <head>
+        <title>Estatepro</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="//netdna.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" media="screen">
+        <style>
+            .container {
+                max-width: 1000px;
+            }
+
+            .carousel-inner .item.left.active {
+              transform: translateX(-33%);
+            }
+            .carousel-inner .item.right.active {
+              transform: translateX(33%);
+            }
+
+            .carousel-inner .item.next {
+              transform: translateX(33%)
+            }
+            .carousel-inner .item.prev {
+              transform: translateX(-33%)
+            }
+
+            .carousel-inner .item.right,
+            .carousel-inner .item.left {
+              transform: translateX(0);
+            }
+
+            .align-right {
+                text-align: right
+            }
+
+            .description {
+                margin-top: 5px;
+                margin-bottom: 5px;
+            }
+
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Estatepro</h1>
+
+            <form class="form">
+                <div class="form-group">
+                    <label for="price_min" class="control-label col-sm-3">Inzerovaná cena min</label>
+                    <div class="col-sm-3">
+                        <input type="number" class="form-control input-sm" id="price_min" name="price_min"
+                               value="{{params['price_min']}}"/>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="price_max" class="control-label col-sm-3">Inzerovaná cena max</label>
+                    <div class="col-sm-3">
+                        <input type="number" class="form-control input-sm" id="price_max" name="price_max"
+                               value="{{params['price_max']}}"/>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="m2_min" class="control-label col-sm-3">Plocha min</label>
+                    <div class="col-sm-3">
+                        <input type="number" class="form-control input-sm" id="m2_min" name="m2_min"
+                               value="{{params['m2_min']}}"/>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="m2_max" class="control-label col-sm-3">Plocha max</label>
+                    <div class="col-sm-3">
+                        <input type="number" class="form-control input-sm" id="m2_max" name="m2_max"
+                               value="{{params['m2_max']}}"/>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="date_from" class="control-label col-sm-3">Aktualizováno od</label>
+                    <div class="col-sm-3">
+                      <input type="date" class="form-control input-sm" id="date_from" name="date_from"
+                             value="{{params['date_from']}}"/>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-sm-3 col-sm-offset-2"> <!--New div, offset because there is no label -->
+                        <button type="submit" class="btn btn-primary">Hledat</button>
+                    </div>
+                </div>
+
+            </form>
+
+            <div class="row">
+                <div class="col-md-12 align-right">Výsledků: {{ estates | count }}</div>
+            </div>
+            {% for estate in estates %}
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        {{ loop.index }}. <a href="{{ estate.link }}">{{ estate.title }}, {{ estate.locality }}</a>
+                    </h4>
+                    <div class="panel-body">
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-4">Reálná cena</div>
+                                <div class="col-md-8">{{ '{:,}'.format(estate.real_price|int) }} CZK</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">Inzerovaná cena</div>
+                                <div class="col-md-8">{{ '{:,}'.format(estate.price|int) }} CZK</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">Plocha</div>
+                                <div class="col-md-8">{{ estate.m2_floors }} m<sup>2</sup></div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">Cena za m<sup>2</sup></div>
+                                <div class="col-md-8">{{ '{:,}'.format(estate.price_m2_floors|int) }} CZK</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-4">Stav</div>
+                                <div class="col-md-8">{{ estate.state }}</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">Patro</div>
+                                <div class="col-md-8">{{ estate.floor }}.</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">Zdroj</div>
+                                <div class="col-md-8">{{ estate.source }}</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="description col-md-12">
+                                {{ estate.description }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="carousel slide multi-item-carousel" id="theCarousel{{loop.index}}">
+                                    <div class="carousel-inner">
+
+                                    {% for link in estate.img_links %}
+                                        {% if loop.index == 1 %}
+                                        <div class="item active">
+                                            <div class="col-md-4 col-sm-6 col-xs-12"><a href="{{ link }}"><img src="{{ link }}" class="img-responsive"></a></div>
+                                        </div>
+                                        {% else %}
+                                        <div class="item">
+                                            <div class="col-md-4 col-sm-6 col-xs-12"><a href="{{ link }}"><img src="{{ link }}" class="img-responsive"></a></div>
+                                        </div>
+                                        {% endif %}
+                                    {% endfor%}
+                                    </div>
+                                    <a class="left carousel-control" href="#theCarousel{{loop.index}}" data-slide="prev"><i class="glyphicon glyphicon-chevron-left"></i></a>
+                                    <a class="right carousel-control" href="#theCarousel{{loop.index}}" data-slide="next"><i class="glyphicon glyphicon-chevron-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <script src="//code.jquery.com/jquery-2.2.1.min.js"></script>
+        <script src="//netdna.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+        <script type="text/javascript">
+            // Instantiate the Bootstrap carousel
+            $('.multi-item-carousel').carousel({
+              interval: false
+            });
+
+            // for every slide in carousel, copy the next slide's item in the slide.
+            // Do the same for the next, next item.
+            $('.multi-item-carousel .item').each(function(){
+              var next = $(this).next();
+              if (!next.length) {
+                next = $(this).siblings(':first');
+              }
+              next.children(':first-child').clone().appendTo($(this));
+
+              if (next.next().length>0) {
+                next.next().children(':first-child').clone().appendTo($(this));
+              } else {
+                $(this).siblings(':first').children(':first-child').clone().appendTo($(this));
+              }
+            });
+        </script>
+    </body>
+</html>
