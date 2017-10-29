@@ -32,6 +32,7 @@ db.init_app(app)
 @app.route('/', methods=['GET'])
 def index():
     params = dict()
+    params['page'] = int(request.args.get('page') or 1)
     params['price_min'] = request.args.get('price_min') or 0
     params['price_max'] = request.args.get('price_max') or 100000000
     params['date_from'] = request.args.get('date_from') or arrow.now().shift(days=-7).format('YYYY-MM-DD')
@@ -47,11 +48,13 @@ def index():
             Estate.price.between(params['price_min'], params['price_max']),
             Estate.m2_floors.between(params['m2_min'], params['m2_max']),
         )
-    ).order_by(Estate.price_m2_floors) #.all()
+    ).order_by(Estate.price_m2_floors)
     # print(estates_query)
-    estates = estates_query.all()
+    print('Page: ', params['page'])
+    count = estates_query.count()
+    estates = estates_query.paginate(params['page'], 50, False)
 
-    return render_template('index.html', estates=estates, params=params)
+    return render_template('index.html', estates=estates, params=params, count=count)
 
 
 if __name__ == '__main__':

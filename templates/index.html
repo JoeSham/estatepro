@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
     <head>
         <title>Estatepro</title>
@@ -41,8 +41,10 @@
     </head>
     <body>
         <div class="container">
+
             <h1>Estatepro</h1>
 
+            <div class="row">
             <form class="form">
                 <div class="form-group">
                     <label for="price_min" class="control-label col-sm-3">Inzerovaná cena min</label>
@@ -84,84 +86,103 @@
                         <button type="submit" class="btn btn-primary">Hledat</button>
                     </div>
                 </div>
-
             </form>
+            </div>
 
             <div class="row">
-                <div class="col-md-12 align-right">Výsledků: {{ estates | count }}</div>
+                <div class="col-md-12 align-right">Výsledků celkem: {{ count }}</div>
             </div>
-            {% for estate in estates %}
+
+            {% for estate in estates.items %}
             <div class="panel panel-default">
                 <div class="panel-heading">
                     <h4 class="panel-title">
-                        {{ loop.index }}. <a href="{{ estate.link }}">{{ estate.title }}, {{ estate.locality }}</a>
+                        {{ loop.index + (params.page - 1) * 50 }}. <a href="{{ estate.link }}">{{ estate.title }}, {{ estate.locality }}</a>
                     </h4>
-                    <div class="panel-body">
-                        <div class="col-md-6">
-                            <div class="row">
-                                <div class="col-md-4">Reálná cena</div>
-                                <div class="col-md-8">{{ '{:,}'.format(estate.real_price|int) }} CZK</div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4">Inzerovaná cena</div>
-                                <div class="col-md-8">{{ '{:,}'.format(estate.price|int) }} CZK</div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4">Plocha</div>
-                                <div class="col-md-8">{{ estate.m2_floors }} m<sup>2</sup></div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4">Cena za m<sup>2</sup></div>
-                                <div class="col-md-8">{{ '{:,}'.format(estate.price_m2_floors|int) }} CZK</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="row">
-                                <div class="col-md-4">Stav</div>
-                                <div class="col-md-8">{{ estate.state }}</div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4">Patro</div>
-                                <div class="col-md-8">{{ estate.floor }}.</div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4">Zdroj</div>
-                                <div class="col-md-8">{{ estate.source }}</div>
-                            </div>
-                        </div>
-
+                </div>
+                <div class="panel-body">
+                    <div class="col-md-6">
                         <div class="row">
-                            <div class="description col-md-12">
-                                {{ estate.description }}
-                            </div>
+                            <div class="col-md-4">Reálná cena</div>
+                            <div class="col-md-8">{{ '{:,}'.format(estate.real_price|int) }} CZK</div>
                         </div>
-
                         <div class="row">
-                            <div class="col-md-12">
-                                <div class="carousel slide multi-item-carousel" id="theCarousel{{loop.index}}">
-                                    <div class="carousel-inner">
+                            <div class="col-md-4">Inzerovaná cena</div>
+                            <div class="col-md-8">{{ '{:,}'.format(estate.price|int) }} CZK</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">Plocha</div>
+                            <div class="col-md-8">{{ estate.m2_floors }} m<sup>2</sup></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">Cena za m<sup>2</sup></div>
+                            <div class="col-md-8">{{ '{:,}'.format(estate.price_m2_floors|int) }} CZK</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="row">
+                            <div class="col-md-4">Stav</div>
+                            <div class="col-md-8">{{ estate.state }}</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">Patro</div>
+                            <div class="col-md-8">{{ estate.floor }}.</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">Zdroj</div>
+                            <div class="col-md-8">{{ estate.source }}</div>
+                        </div>
+                    </div>
 
-                                    {% for link in estate.img_links %}
-                                        {% if loop.index == 1 %}
-                                        <div class="item active">
-                                            <div class="col-md-4 col-sm-6 col-xs-12"><a href="{{ link }}"><img src="{{ link }}" class="img-responsive"></a></div>
-                                        </div>
-                                        {% else %}
-                                        <div class="item">
-                                            <div class="col-md-4 col-sm-6 col-xs-12"><a href="{{ link }}"><img src="{{ link }}" class="img-responsive"></a></div>
-                                        </div>
-                                        {% endif %}
-                                    {% endfor%}
+                    <div class="row">
+                        <div class="description col-md-12">
+                            {{ estate.description }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="carousel slide multi-item-carousel" id="theCarousel{{loop.index}}">
+                                <div class="carousel-inner">
+
+                                {% for link in estate.img_links %}
+                                    {% if loop.index == 1 %}
+                                    <div class="item active">
+                                        <div class="col-md-4 col-sm-6 col-xs-12"><a href="{{ link }}"><img src="{{ link }}" class="img-responsive"></a></div>
                                     </div>
-                                    <a class="left carousel-control" href="#theCarousel{{loop.index}}" data-slide="prev"><i class="glyphicon glyphicon-chevron-left"></i></a>
-                                    <a class="right carousel-control" href="#theCarousel{{loop.index}}" data-slide="next"><i class="glyphicon glyphicon-chevron-right"></i></a>
+                                    {% else %}
+                                    <div class="item">
+                                        <div class="col-md-4 col-sm-6 col-xs-12"><a href="{{ link }}"><img src="{{ link }}" class="img-responsive"></a></div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor%}
                                 </div>
+                                <a class="left carousel-control" href="#theCarousel{{loop.index}}" data-slide="prev"><i class="glyphicon glyphicon-chevron-left"></i></a>
+                                <a class="right carousel-control" href="#theCarousel{{loop.index}}" data-slide="next"><i class="glyphicon glyphicon-chevron-right"></i></a>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             {% endfor %}
+
+            <div>
+            {% if estates.has_prev %}
+                <a href="{{ url_for('index', page=estates.prev_num) }}&{{ request.query_string.decode() }}">
+                    &laquo; Předchozí
+                </a>
+            {% else %}
+                &laquo; Předchozí
+            {% endif %}
+            |
+            {% if estates.has_next %}
+                <a href="{{ url_for('index', page=estates.next_num) }}&{{ request.query_string.decode() }}">
+                    Další &raquo;</a>
+            {% else %}
+                    Další &raquo;
+            {% endif %}
+            </div>
+
         </div>
         <script src="//code.jquery.com/jquery-2.2.1.min.js"></script>
         <script src="//netdna.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
