@@ -24,15 +24,19 @@ DB_PORT = DB_URL.port
 DB_DATABASE = DB_URL.path[1:]
 DB_USERNAME = DB_URL.username
 DB_PASSWORD = DB_URL.password
-conn = psycopg2.connect(
-    "host='{DB_HOST}' "
-    "port={DB_PORT} "
-    "user='{DB_USERNAME}' "
-    "password='{DB_PASSWORD}' "
-    "dbname='{DB_DATABASE}'".format(DB_HOST=DB_HOST, DB_PORT=DB_PORT, DB_USERNAME=DB_USERNAME, DB_PASSWORD=DB_PASSWORD,
-                                    DB_DATABASE=DB_DATABASE)
-)
-cur = conn.cursor()
+
+
+def get_conn():
+    conn = psycopg2.connect(
+        "host='{DB_HOST}' "
+        "port={DB_PORT} "
+        "user='{DB_USERNAME}' "
+        "password='{DB_PASSWORD}' "
+        "dbname='{DB_DATABASE}'".format(DB_HOST=DB_HOST, DB_PORT=DB_PORT, DB_USERNAME=DB_USERNAME,
+                                        DB_PASSWORD=DB_PASSWORD, DB_DATABASE=DB_DATABASE)
+    )
+    return conn
+
 
 request_list = [
     {
@@ -42,7 +46,9 @@ request_list = [
 ]
 
 
-def ensure_destionation_table():
+def ensure_destination_table():
+    conn = get_conn()
+    cur = conn.cursor()
     cur.execute(
         '''
             CREATE TABLE IF NOT EXISTS estate (
@@ -87,9 +93,12 @@ def ensure_destionation_table():
             );
         '''
     )
+    conn.close()
 
 
-def upsert(conn, cur, data):
+def upsert(data):
+    conn = get_conn()
+    cur = conn.cursor()
     query = cur.mogrify(
         '''
             INSERT INTO estate VALUES (
@@ -180,9 +189,16 @@ def upsert(conn, cur, data):
             # 'updated': data['None'],  # now() in sql
         }
     )
-    cur.execute(query)
-    conn.commit()  # save db changes
-    print('Upsert successfull.')
+    try:
+        cur.execute(query)
+        conn.commit()  # save db changes
+        print('Upsert successful.')
+    except Exception as e:
+        print(e)
+        print(query)
+        conn.close()
+    conn.close()
+
 
 def td_that_doesnotcontainlink(tag):
     res = []
@@ -193,16 +209,19 @@ def td_that_doesnotcontainlink(tag):
     return res
 
 def getTodaysUpdate():
+    conn = get_conn()
+    cur = conn.cursor()
     cur.execute('select id from estate where source = \'bezrealitky.cz\' and timestamp > now() - interval \'1 day\'')
     res = [x[0] for x in cur.fetchall()]
+    conn.close()
     return res
 
-ensure_destionation_table()
-editedToday = getTodaysUpdate();
+ensure_destination_table()
+editedToday = getTodaysUpdate()
 
 for request in request_list:
     with requests.Session() as session:
-        if ('payload' in request):
+        if 'payload' in request:
             r = session.post(request['url'], json=request['payload'], verify=False)
         else:
             r = session.get(request['url'], verify=False)
@@ -304,5 +323,5 @@ for request in request_list:
                     data['terrace'] = False
                     data['img_links'] = []
 
-                upsert(conn, cur, data)
+                upsert(data)
                 # time.sleep(0.5)
