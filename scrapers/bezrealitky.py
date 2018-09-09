@@ -5,12 +5,15 @@ import os
 import re
 import time
 import urllib
+import urllib3
 
 import arrow
 from bs4 import BeautifulSoup
 from geopy.geocoders import Nominatim
 import psycopg2
 import requests
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 BASE_URL = 'https://www.bezrealitky.cz'
 FLATS_URL_SUB_PART = '/nemovitosti-byty-domy/'
@@ -33,9 +36,9 @@ cur = conn.cursor()
 
 request_list = [
     {
-        'url': 'https://www.bezrealitky.cz/api/search/map',
-        'payload': {"action":"map","squares":"[\"{\\\"swlat\\\":48,\\\"swlng\\\":16,\\\"nelat\\\":50,\\\"nelng\\\":20}\"]","filter":{"order":"time_order_desc","advertoffertype":"nabidka-prodej","estatetype":["byt"],"disposition":[],"ownership":"","equipped":"","priceFrom": 0,"priceTo": 0,"construction":"","description":"","surfaceFrom":"","surfaceTo":"","balcony":"","terrace":"","polygons":[[{"lat":49.285305697158,"lng":16.59318011636401},{"lat":49.293561487008,"lng":16.59921924028299},{"lat":49.286743305975,"lng":16.648931488464996},{"lat":49.27812147415,"lng":16.617572870816957},{"lat":49.23353050028,"lng":16.673252785399995},{"lat":49.224973955024,"lng":16.664667637137995},{"lat":49.21803168933,"lng":16.676081231174066},{"lat":49.241931640386,"lng":16.72669993171496},{"lat":49.211740225328,"lng":16.712135988749992},{"lat":49.193402720949,"lng":16.72078924470793},{"lat":49.185055402043,"lng":16.69435427764904},{"lat":49.171993935571,"lng":16.70482451497105},{"lat":49.148502821265,"lng":16.700185282734992},{"lat":49.145550434818,"lng":16.712369956814996},{"lat":49.128206336719,"lng":16.706253451799967},{"lat":49.109880601728,"lng":16.62631252285405},{"lat":49.14509029711,"lng":16.64029255158607},{"lat":49.135826438005,"lng":16.589742400596037},{"lat":49.157476689683,"lng":16.595028653236},{"lat":49.152865482841,"lng":16.55842988552604},{"lat":49.196125037658,"lng":16.493182612501982},{"lat":49.193417843488,"lng":16.45803022259804},{"lat":49.216667169031,"lng":16.42798939985903},{"lat":49.282703325646,"lng":16.46271568074303},{"lat":49.263483832977,"lng":16.50831519252597},{"lat":49.256926576028,"lng":16.50192391105793},{"lat":49.241146283494,"lng":16.526361237196966},{"lat":49.254919165921,"lng":16.531992382555927},{"lat":49.253474846061,"lng":16.56207702868005},{"lat":49.265822080947,"lng":16.553320145507996},{"lat":49.285305697158,"lng":16.59318011636401},{"lat":49.285305697158,"lng":16.59318011636401},{"lat":49.285305697158,"lng":16.59318011636401},{"lat":49.285305697158,"lng":16.59318011636401}]]}}
+        'url': 'https://www.bezrealitky.cz/api/record/markers?offerType=prodej&estateType=byt%2Cdum&boundary=%5B%5B%7B%22lat%22%3A49.29599792898956%2C%22lng%22%3A16.78011389402343%7D%2C%7B%22lat%22%3A49.284097329283846%2C%22lng%22%3A16.82773406086949%7D%2C%7B%22lat%22%3A49.25886694189089%2C%22lng%22%3A16.846440775899055%7D%2C%7B%22lat%22%3A49.20749603841644%2C%22lng%22%3A16.86137203201031%7D%2C%7B%22lat%22%3A49.1590032200752%2C%22lng%22%3A16.896797580217935%7D%2C%7B%22lat%22%3A49.06446181159556%2C%22lng%22%3A17.038986473049363%7D%2C%7B%22lat%22%3A48.735114944944414%2C%22lng%22%3A17.001468088695447%7D%2C%7B%22lat%22%3A48.70541377205597%2C%22lng%22%3A16.856822048449658%7D%2C%7B%22lat%22%3A48.90180204589122%2C%22lng%22%3A15.950732661330107%7D%2C%7B%22lat%22%3A49.24947705021509%2C%22lng%22%3A15.886054514590228%7D%2C%7B%22lat%22%3A49.41475929428654%2C%22lng%22%3A15.902301320312517%7D%2C%7B%22lat%22%3A49.480081880923%2C%22lng%22%3A16.143495934490602%7D%2C%7B%22lat%22%3A49.418584054221185%2C%22lng%22%3A16.33890390254669%7D%2C%7B%22lat%22%3A49.38025269543562%2C%22lng%22%3A16.52588706746178%7D%2C%7B%22lat%22%3A49.374485574435326%2C%22lng%22%3A16.592085944479095%7D%2C%7B%22lat%22%3A49.29599792898956%2C%22lng%22%3A16.78011389402343%7D%5D%5D&hasDrawnBoundary=true&locationInput=brno',
     },
+
 ]
 
 
@@ -181,103 +184,125 @@ def upsert(conn, cur, data):
     conn.commit()  # save db changes
     print('Upsert successfull.')
 
+def td_that_doesnotcontainlink(tag):
+    res = []
+    tds = tag.find_all('td')
+    for td in tds:
+        if td.find('a') == None:
+            res.append(td)
+    return res
+
+def getTodaysUpdate():
+    cur.execute('select id from estate where source = \'bezrealitky.cz\' and timestamp > now() - interval \'1 day\'')
+    res = [x[0] for x in cur.fetchall()]
+    return res
 
 ensure_destionation_table()
+editedToday = getTodaysUpdate();
+
 for request in request_list:
     with requests.Session() as session:
-        r = session.post(request['url'], json=request['payload'], verify=False)
-        estate_list = json.loads(r.text)['squares'][0]['records']
+        if ('payload' in request):
+            r = session.post(request['url'], json=request['payload'], verify=False)
+        else:
+            r = session.get(request['url'], verify=False)
+        estate_list = json.loads(r.text)
         for estate in estate_list:
-            url = BASE_URL + FLATS_URL_SUB_PART + estate['id']
-            print(url)
-            r_details = session.get(url, verify=False)
-            soup = BeautifulSoup(r_details.text, 'html.parser')
-            data = dict()
-            data['source'] = 'bezrealitky.cz'
-            data['id'] = int(estate['id'])
-            data['price'] = int(estate['price'])
-            data['m2'] = int(estate['surface'])
-            data['m2_floors'] = int(estate['surface'])
-            data['price_m2'] = round(data['price'] / data['m2']) if data['m2'] > 0 else 0
-            data['price_m2_floors'] = data['price_m2']
-            data['real_price'] = round(data['price'] * 1.04)
-
-            data['latitude'] = estate['lat']
-            data['longitude'] = estate['lng']
-            data['location'] = None
-            if data['latitude'] and data['longitude']:
-                try:
-                    geolocator = Nominatim()
-                    data['location'] = geolocator.reverse('{0}, {1}'.format(data['latitude'],
-                                                                            data['longitude'])).address.encode('utf8')
-                except:
-                    pass
-
-            data['edited'] = min(arrow.get(estate['time_order']), arrow.now()).date()
-            data['link'] = url
-
-            meta_title = soup.find('meta', attrs={'property': 'og:title'})
-            if meta_title:
-                data['title'] = soup.find('meta', attrs={'property': 'og:title'}).get('content')
+            id = int(estate['id'])
+            url = BASE_URL + FLATS_URL_SUB_PART + str(id)
+            if (str(id) in editedToday):
+                print('Skipping ' + url)
             else:
-                data['title'] = estate['title']
+                print(url)
+                r_details = session.get(url, verify=False)
+                soup = BeautifulSoup(r_details.text, 'html.parser')
+                data = dict()
+                data['source'] = 'bezrealitky.cz'
+                data['id'] = id
+                data['price'] = int(estate['advertEstateOffer'][0]['price'])
+                data['m2'] = int(estate['advertEstateOffer'][0]['surface'])
+                data['m2_floors'] = int(estate['advertEstateOffer'][0]['surface'])
+                data['price_m2'] = round(data['price'] / data['m2']) if data['m2'] > 0 else 0
+                data['price_m2_floors'] = data['price_m2']
+                data['real_price'] = round(data['price'] * 1.04)
 
-            header = soup.find('header')
-            if header:
-                data['locality'] = header.find('h2').text
-            else:
-                data['locality'] = ''
+                gps = json.loads(estate['advertEstateOffer'][0]['gps'])
+                data['latitude'] = gps['lat']
+                data['longitude'] = gps['lng']
+                data['location'] = None
+                if data['latitude'] and data['longitude']:
+                    try:
+                        geolocator = Nominatim()
+                        data['location'] = geolocator.reverse('{0}, {1}'.format(data['latitude'],
+                                                                                data['longitude'])).address.encode('utf8')
+                    except:
+                        pass
 
-            box_description = soup.find('div', attrs={'class': 'box-description'})
-            if box_description:
-                data['description'] = list(box_description.find('div', attrs={'class': 'full'}).stripped_strings)[0]
-            else:
-                data['description'] = ''
+                data['edited'] = min(arrow.get(estate['timeOrder']['date']), arrow.now()).date()
+                data['link'] = url
 
-            details = soup.find('div', attrs={'class': 'block-params'})
-            if details:
-                keys = details.find_all(class_='key')
-                values = details.find_all(class_='value')
-                for key, value in zip(keys, values):
-                    # if key.text == 'číslo inzerátu:':
-                    #     data['id'] = int(value.text.strip())
-                    if key.text == 'dispozice:':
-                        data['type'] = value.text.strip()
-                    # elif key.text == 'plocha:':
-                    #     data['m2'] = int(value.text.strip().split(' ')[0])
-                    # elif key.text == 'cena:':
-                    #     data['price'] = int(value.text.strip().split(' ')[0].replace('.', ''))
-                    elif key.text == 'typ vlastnictví:':
-                        data['ownership'] = value.text.strip().lower()
-                    elif key.text == 'energetická třída:':
-                        data['energy_class'] = value.text.strip().upper()
-                    elif key.text == 'typ budovy:':
-                        data['building_type'] = value.text.strip().lower()
-                    elif key.text == 'vybavení:':
-                        data['equipment'] = value.text.strip().lower()
-                    elif key.text == 'podlaží:':
-                        data['floor'] = int(value.text.strip())
-                    elif key.text == 'balkón:':
-                        data['balcony'] = True if value.text.strip().lower() == 'ano' else False
-                    elif key.text == 'terasa:':
-                        data['terrace'] = True if value.text.strip().lower() == 'ano' else False
-
-                photos_div = soup.find('div', attrs={'class': 'other-photos'})
-                data['img_links'] = [img['src'] for img in photos_div.find_all('img')]
-            else:
-                r = re.search(r'([0-9]\+(?:kk|1))', estate['title'])
-                if r:
-                    data['type'] = r.group(1)
+                meta_title = soup.find('meta', attrs={'property': 'og:title'})
+                if meta_title:
+                    data['title'] = soup.find('meta', attrs={'property': 'og:title'}).get('content')
                 else:
-                    data['type'] = None
-                data['ownership'] = None
-                data['energy_class'] = None
-                data['building_type'] = None
-                data['equipment'] = None
-                data['floor'] = None
-                data['balcony'] = False
-                data['terrace'] = False
-                data['img_links'] = []
+                    data['title'] = estate['uri']
 
-            upsert(conn, cur, data)
-            # time.sleep(0.5)
+                headerPerex = soup.find('p', attrs={'class': 'heading__perex'})
+                if headerPerex:
+                    data['locality'] = headerPerex.text.strip()
+                else:
+                    data['locality'] = ''
+
+                box_description = soup.find('div', attrs={'class': 'b-desc'})
+                if box_description:
+                    data['description'] = list(box_description.find('p', attrs={'class': 'b-desc__info'}).stripped_strings)[0]
+                else:
+                    data['description'] = ''
+
+                details = soup.find('table', attrs={'class': 'table', 'style': "border-collapse: initial;"})
+                if details:
+                    keys = details.find_all('th')
+                    values = td_that_doesnotcontainlink(details)
+                    for key, value in zip(keys, values):
+                        # if key.text == 'číslo inzerátu:':
+                        #     data['id'] = int(value.text.strip())
+                        if key.text == 'Dispozice:':
+                            data['type'] = value.text.strip()
+                        # elif key.text == 'plocha:':
+                        #     data['m2'] = int(value.text.strip().split(' ')[0])
+                        # elif key.text == 'cena:':
+                        #     data['price'] = int(value.text.strip().split(' ')[0].replace('.', ''))
+                        elif key.text == 'Typ vlastnictví:':
+                            data['ownership'] = value.text.strip().lower()
+                        elif key.text == 'PENB:':
+                            data['energy_class'] = value.text.strip().upper()
+                        elif key.text == 'Typ budovy:':
+                            data['building_type'] = value.text.strip().lower()
+                        elif key.text == 'Vybavení:':
+                            data['equipment'] = value.text.strip().lower()
+                        elif key.text == 'Podlaží:':
+                            data['floor'] = int(value.text.strip())
+                        elif key.text == 'Balkón:':
+                            data['balcony'] = True if value.text.strip().lower() == 'ano' else False
+                        elif key.text == 'Terasa:':
+                            data['terrace'] = True if value.text.strip().lower() == 'ano' else False
+
+                    photos_div = soup.find('div', attrs={'class': 'b-gallery'})
+                    data['img_links'] = [img['src'] for img in photos_div.find_all('img')]
+                else:
+                    r = re.search(r'([0-9]\+(?:kk|1))', data['title'])
+                    if r:
+                        data['type'] = r.group(1)
+                    else:
+                        data['type'] = None
+                    data['ownership'] = None
+                    data['energy_class'] = None
+                    data['building_type'] = None
+                    data['equipment'] = None
+                    data['floor'] = None
+                    data['balcony'] = False
+                    data['terrace'] = False
+                    data['img_links'] = []
+
+                upsert(conn, cur, data)
+                # time.sleep(0.5)
